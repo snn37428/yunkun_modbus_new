@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="shop.dao.TaskYunMapper">
+    <resultMap id="ResultMap" type="shop.domain.ConfigDO">
+        <id column="id" property="id"/>
+        <result column="config_id" property="configId"/>
+        <result column="p_name" property="name"/>
+        <result column="p_desc" property="desc"/>
+        <result column="p_type" property="type"/>
+        <result column="model" property="model"/>
+        <result column="modbus_addr" property="address"/>
+        <result column="group_code" property="groupCode"/>
+    </resultMap>
+
+    <select id="readConfig" resultMap="ResultMap" parameterType="java.lang.String">
+        select`id` ,`config_id` ,`p_name` ,`p_desc`,`p_type` ,`model`,`modbus_addr`,`group_code`
+        from config where group_code in (1,2,3)
+    </select>
+
+</mapper>

@@ -1,0 +1,307 @@
+package shop.task;
+
+
+import com.alibaba.fastjson.JSONObject;
+import modbus.Modbus;
+import modbus.protocol.ModbusAnswer;
+import modbus.protocol.ModbusProtocol;
+import modbus.protocol.ModbusRequest;
+import org.apache.log4j.Logger;
+import org.springframework.util.CollectionUtils;
+import shop.domain.CUBO;
+import shop.domain.Cell;
+import shop.excl.ReadConfig;
+
+import javax.annotation.PostConstruct;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+public class TaskScheduled {
+
+    private static final Logger logger = Logger.getLogger(TaskScheduled.class);
+
+    /**
+     * 加载的云库配置
+     */
+    private static List<CUBO> cubo = new ArrayList<CUBO>();
+
+    /**
+     * plc ip
+     */
+    private static int nDeviceId = Integer.valueOf(ReadConfig.getDeviceId());
+    private static String ip = ReadConfig.getIp();
+
+    /**
+     * 连接Plc资源
+     */
+    private static management.DevicesManagement manager = new management.DevicesManagement(true);
+    private static int nServerListPos = manager.add(ip, Modbus.DEFAULT_PORT);
+    private static int nServerDataType = ModbusProtocol.DATATYPE_INT32;
+    private static int nConvMode = ModbusProtocol.CONVMOD_0123_3210;
+    private static int nJavaDataType = ModbusProtocol.DATATYPE_JAVA_INT32;
+    private static ModbusRequest req = new ModbusRequest();
+    private static ModbusAnswer ans = new ModbusAnswer();
+
+    @PostConstruct
+    public void init() {
+        try {
+            cubo = ReadConfig.getCuboList();
+            logger.info("————init: cubo success" + JSONObject.toJSONString(cubo));
+            // 发送设置
+            req.setServerDataType(nServerDataType);
+            // 设置为需要检查所有反馈信息
+            req.setCheckAnswer(ModbusProtocol.CHKASK_ALL);
+            // 接收设置
+            ans.setServerDataType(nServerDataType);
+            // 必须设置的内容
+            ans.setConvertMode(nServerDataType, nConvMode, nJavaDataType);
+        } catch (Exception e) {
+            logger.error("init is Exception", e);
+        }
+    }
+
+    /**
+     * 主任务 循环执行
+     */
+    public void taskRun() {
+
+        List<Cell> cells = new ArrayList<Cell>();
+
+        for (CUBO cb : cubo) {
+            if (cb == null) {
+                logger.info("————taskRun: cb null");
+                continue;
+            }
+            read(cb, cells);
+        }
+
+        logger.info("__________" + JSONObject.toJSONString(cells));
+    }
+
+
+    public void read(CUBO cb, List<Cell> cells) {
+
+        if (nServerListPos == -1) {
+            logger.warn("————read: nServerListPos = -1 progress return");
+            return;
+        }
+        Cell cell = null;
+        int start = cb.getnFrom();
+        int num = cb.getAddNum();
+        if ("1".equals(cb.getModel())) {
+            cb.setValue(readModelData1(start, num));
+            cells.addAll(CUBO2Cell(cb));
+        } else if ("3".equals(cb.getModel())) {
+            cb.setValue(readModelData3(start, num, cb.getDataType()));
+            cells.addAll(CUBO2Cell(cb));
+        } else if ("4".equals(cb.getModel())) {
+            cb.setValue(readModelData3(start, num, cb.getDataType()));
+            cells.addAll(CUBO2Cell(cb));
+        }
+    }
+
+    /**
+     * plc 读取模型 转 入库模型
+     *
+     * @param cb
+     */
+    private List<Cell> CUBO2Cell(CUBO cb) {
+        List<Cell> cells = null;
+        try {
+            List<String> values = cb.getValue();
+            if (CollectionUtils.isEmpty(values)) {
+                logger.warn("————CUBO2Cell: cb read values null");
+                return cells;
+            }
+            cells = new ArrayList<Cell>();
+            for (int i = 0; i < values.size(); i++) {
+                Cell cell = new Cell();
+                cell.setName(cb.getDotName().get(i));
+                cell.setDesc(cb.getDotDesc().get(i));
+                cell.setValue(values.get(i));
+                cell.setGroupCode(cb.getGroupCode());
+                cell.setConfigId(cb.getListConfigId().get(i));
+                cell.setType(cb.getType());
+                cell.setDate(new Date());
+            }
+        } catch (Exception e) {
+            logger.warn("————CUBO2Cell is Exception", e);
+        }
+        return cells;
+    }
+
+    /**
+     * 读取功能码1
+     *
+     * @param nFrom
+     * @param nNum
+     */
+    private List<String> readModelData1(int nFrom, int nNum) {
+
+        List<String> responseData = new ArrayList<String>();
+
+        try {
+            ans.setConvertMode(ModbusProtocol.DATATYPE_INT32, ModbusProtocol.CONVMOD_0123_3210,
+                    ModbusProtocol.DATATYPE_JAVA_FLOAT32);
+            int nError = req.sendReadCoil(nDeviceId, nFrom, nNum);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                logger.info("sendReadCoil-参数设置有效");
+            } else {
+                logger.warn("sendReadCoil-参数设置无效，" + ModbusProtocol.getErrorMessage(nError));
+            }
+            // 2、发送指令
+            nError = manager.write(nServerListPos, req);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                logger.info("sendReadCoil-发送成功");
+            } else {
+                logger.warn("sendReadCoil-发送失败，" + ModbusProtocol.getErrorMessage(nError));
+            }
+            // 3、接收数据
+            nError = manager.read(nServerListPos, ans);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                logger.info("sendReadCoil-接收成功");
+            } else {
+                logger.warn("sendReadCoil-接受失败，" + ModbusProtocol.getErrorMessage(nError));
+            }
+            // 4、接收数据后，通过该方法读取相应数据
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                for (int i = nFrom; i < nFrom + nNum; i++) {
+                    int nCoilStatus = ans.getBitByIndex(i);
+                    if (nCoilStatus == -1) {
+                        // 设置无效值
+                        nCoilStatus = 9911;
+                        logger.info("*****readModelData1 is failed*****");
+                    }
+                    responseData.add(String.valueOf(nCoilStatus));
+                }
+            }
+        } catch (Exception e) {
+            logger.error("readModelData1 is Exception", e);
+        }
+        if (CollectionUtils.isEmpty(responseData)) {
+            logger.error("readModelData1 is null");
+        }
+        return responseData;
+    }
+
+    /**
+     * 读取功能码3
+     *
+     * @param nFrom
+     * @param nNum
+     */
+    private List<String> readModelData3(int nFrom, int nNum, int dataType) {
+
+        List<String> responseData = new ArrayList<String>();
+        try {
+            ans.setConvertMode(dataType, ModbusProtocol.CONVMOD_0123_3210,
+                    ModbusProtocol.DATATYPE_JAVA_FLOAT32);
+            // 1、设置发送指令参数
+            int nError = req.sendReadHoldingRegister(nDeviceId, nFrom, nNum);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                // System.out.println("--send-start");
+            } else {
+                System.out.println(ModbusProtocol.getErrorMessage(nError));
+            }
+            // 2、发送指令
+            nError = manager.write(nServerListPos, req);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                // System.out.println("--send-success");
+            } else {
+                System.out.println(ModbusProtocol.getErrorMessage(nError));
+            }
+            // 3、接收数据
+            nError = manager.read(nServerListPos, ans);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                // System.out.println("--accept-success");
+            } else {
+                System.out.println(ModbusProtocol.getErrorMessage(nError));
+            }
+            // 4、接收数据后，通过该方法读取相应数据
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                for (int i = nFrom; i < nFrom + nNum; i++) {
+                    //选择方法与Java端数据类型有关
+                    //int data = ans.getIntByIndex(i);
+                    float data = ans.getFloatByIndex(i - nFrom);
+                    if ((float) 268435456 == data) {
+                        data = 9911;
+                        logger.info("*****readModelData3 is failed*****");
+                    }
+                    responseData.add(String.valueOf(data));
+                }
+            }
+        } catch (Exception e) {
+            logger.error("readModelData3 is Exception", e);
+        }
+        if (CollectionUtils.isEmpty(responseData)) {
+            logger.error("readModelData3 is null");
+        }
+        return responseData;
+    }
+
+    /**
+     * 读取功能码4
+     *
+     * @param nFrom
+     * @param nNum
+     */
+    private List<String> readModelData4(int nFrom, int nNum, int dataType) {
+
+        List<String> responseData = new ArrayList<String>();
+        try {
+            ans.setConvertMode(dataType, ModbusProtocol.CONVMOD_0123_3210,
+                    ModbusProtocol.DATATYPE_JAVA_INT32);
+
+            int nError = req.sendReadInputRegister(nDeviceId, nFrom, nNum);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                // System.out.println("sendReadInputRegister-参数设置有效");
+            } else {
+                System.out.println(ModbusProtocol.getErrorMessage(nError));
+            }
+            // 2、发送指令
+            nError = manager.write(nServerListPos, req);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                //System.out.println("sendReadInputRegister-发送有效");
+            } else {
+                System.out.println(ModbusProtocol.getErrorMessage(nError));
+            }
+
+            // 3、接收数据
+            nError = manager.read(nServerListPos, ans);
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                // System.out.println("sendReadInputRegister-接收有效");
+            }
+
+            // 4、接收数据成功，则通过该方法读取相应数据
+            if (nError == ModbusProtocol.ERROR_NONE) {
+                //注：i的值为第几个数据,因此起点为0,而不是字节数的起点也与nAddressFrom不同
+                int nDataFrom = 0;
+                for (int i = nDataFrom; i < nNum; i++) {
+                    //选择的数据类型，与setConvertMode方法中设置的Java端数据类型有关
+                    if (dataType == 105) {
+                        int data = ans.getIntByIndex(i);
+                        if ((float) 268435456 == data) {
+                            data = 9911;
+                            logger.info("*****readModelData4  data(int) is failed*****");
+                        }
+                        responseData.add(String.valueOf(data));
+                    } else if (dataType == 107) {
+                        float data = ans.getFloatByIndex(i);
+                        if ((float) 268435456 == data) {
+                            logger.info("*****readModelData4 data(float) is failed*****");
+                            continue;
+                        }
+                        responseData.add(String.valueOf(data));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("readModelData4 is Exception", e);
+        }
+        if (CollectionUtils.isEmpty(responseData)) {
+            logger.error("readModelData4 is null");
+        }
+        return responseData;
+    }
+}
