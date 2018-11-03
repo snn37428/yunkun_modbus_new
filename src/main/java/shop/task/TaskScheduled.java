@@ -48,6 +48,8 @@ public class TaskScheduled {
         try {
             cubo = ReadConfig.getCuboList();
             logger.info("————init: cubo success" + JSONObject.toJSONString(cubo));
+            // 清除ReadConfig内存
+            ReadConfig.clear();
             // 发送设置
             req.setServerDataType(nServerDataType);
             // 设置为需要检查所有反馈信息

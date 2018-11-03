@@ -12,9 +12,24 @@
         <result column="group_code" property="groupCode"/>
     </resultMap>
 
+    <resultMap id="ResultAlarmMap" type="shop.domain.AlarmDo">
+        <id column="id" property="id"/>
+        <result column="man_switch" property="manSwitch"/>
+        <result column="read_switch" property="readSwitch"/>
+        <result column="write_switch" property="writeSwitch"/>
+        <result column="dingding_switch" property="dingdingSwitch"/>
+        <result column="dingding_alarm" property="dingdingAlarmMsg"/>
+        <result column="list_mobies" property="listMobies"/>
+        <result column="list_cells" property="listCells"/>
+    </resultMap>
+
     <select id="readConfig" resultMap="ResultMap" parameterType="java.lang.String">
         select`id` ,`config_id` ,`p_name` ,`p_desc`,`p_type` ,`model`,`modbus_addr`,`group_code`
         from config where group_code in (1,2,3)
     </select>
 
+    <select id="selectMan" resultMap="ResultAlarmMap">
+        select`man_switch` ,`read_switch` ,`write_switch` ,`dingding_switch`,`dingding_alarm` ,`list_mobies`,`list_cells`
+        from alarm  where id  = 1
+    </select>
 </mapper>

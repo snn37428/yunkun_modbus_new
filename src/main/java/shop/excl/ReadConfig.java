@@ -174,4 +174,9 @@ public class ReadConfig {
     public static void setDeviceId(String deviceId) {
         ReadConfig.deviceId = deviceId;
     }
+
+    public static void clear() {
+        cuboList = null;
+    }
+
 }
