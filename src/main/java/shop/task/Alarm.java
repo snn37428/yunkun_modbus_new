@@ -64,7 +64,6 @@ public class Alarm {
         }
     }
 
-
     /**
      * 定时更新配置
      */
@@ -89,12 +88,11 @@ public class Alarm {
                 pl.add(p[i]);
             }
             setListPhone(pl);
-            logger.warn("----taskAlarmConfig: 更新云库配置到本地完毕！");
+            logger.info("----:更新云库配置到本地完毕！报警号码" + JSONObject.toJSONString(listPhone));
         } catch (Exception e) {
             logger.warn("----taskAlarmConfig is Exception" + e);
         }
     }
-
 
     /**
      * 短信循环电话号码报警
@@ -149,7 +147,7 @@ public class Alarm {
         try {
             sendSmsResponse = acsClient.getAcsResponse(request);
         } catch (ClientException e) {
-            logger.error("sendSms  is  Exception" + e);
+            logger.error("sendSms is Exception" + e);
         }
         return sendSmsResponse;
     }

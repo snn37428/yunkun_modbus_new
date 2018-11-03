@@ -7,6 +7,7 @@ import modbus.protocol.ModbusAnswer;
 import modbus.protocol.ModbusProtocol;
 import modbus.protocol.ModbusRequest;
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import shop.domain.CUBO;
 import shop.domain.Cell;
@@ -31,6 +32,14 @@ public class TaskScheduled {
      */
     private static int nDeviceId = Integer.valueOf(ReadConfig.getDeviceId());
     private static String ip = ReadConfig.getIp();
+
+    private static String kkkkk = "0";
+
+    /**
+     * 报警
+     */
+    @Autowired
+    private Alarm alarm;
 
     /**
      * 连接Plc资源
@@ -67,7 +76,7 @@ public class TaskScheduled {
      * 主任务 循环执行
      */
     public void taskRun() {
-
+//        alarm.sendAlarmInfo();
         List<Cell> cells = new ArrayList<Cell>();
 
         for (CUBO cb : cubo) {
@@ -75,10 +84,15 @@ public class TaskScheduled {
                 logger.info("————taskRun: cb null");
                 continue;
             }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             read(cb, cells);
         }
+        logger.warn("————read:================================================= kkkkk = " + kkkkk);
 
-        logger.info("__________" + JSONObject.toJSONString(cells));
     }
 
 
@@ -88,18 +102,21 @@ public class TaskScheduled {
             logger.warn("————read: nServerListPos = -1 progress return");
             return;
         }
-        Cell cell = null;
-        int start = cb.getnFrom();
-        int num = cb.getAddNum();
-        if ("1".equals(cb.getModel())) {
-            cb.setValue(readModelData1(start, num));
-            cells.addAll(CUBO2Cell(cb));
-        } else if ("3".equals(cb.getModel())) {
-            cb.setValue(readModelData3(start, num, cb.getDataType()));
-            cells.addAll(CUBO2Cell(cb));
-        } else if ("4".equals(cb.getModel())) {
-            cb.setValue(readModelData3(start, num, cb.getDataType()));
-            cells.addAll(CUBO2Cell(cb));
+        try {
+            int start = cb.getnFrom();
+            int num = cb.getAddNum();
+            if ("1".equals(cb.getModel())) {
+                cb.setValue(readModelData1(start, num));
+                cells.addAll(CUBO2Cell(cb));
+            } else if ("3".equals(cb.getModel())) {
+                cb.setValue(readModelData3(start, num, cb.getDataType()));
+                cells.addAll(CUBO2Cell(cb));
+            } else if ("4".equals(cb.getModel())) {
+                cb.setValue(readModelData4(start, num, cb.getDataType()));
+                cells.addAll(CUBO2Cell(cb));
+            }
+        } catch (Exception e) {
+            kkkkk = "1";
         }
     }
 
@@ -139,7 +156,7 @@ public class TaskScheduled {
      * @param nFrom
      * @param nNum
      */
-    private List<String> readModelData1(int nFrom, int nNum) {
+    private List<String> readModelData1(int nFrom, int nNum) throws Exception {
 
         List<String> responseData = new ArrayList<String>();
 
@@ -148,23 +165,23 @@ public class TaskScheduled {
                     ModbusProtocol.DATATYPE_JAVA_FLOAT32);
             int nError = req.sendReadCoil(nDeviceId, nFrom, nNum);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                logger.info("sendReadCoil-参数设置有效");
+                logger.info("readModelData-1:sendReadCoil-参数设置有效");
             } else {
-                logger.warn("sendReadCoil-参数设置无效，" + ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-1:sendReadCoil-参数设置无效，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 2、发送指令
             nError = manager.write(nServerListPos, req);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                logger.info("sendReadCoil-发送成功");
+                logger.info("readModelData-1:sendReadCoil-发送成功");
             } else {
-                logger.warn("sendReadCoil-发送失败，" + ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-1:sendReadCoil-发送失败，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 3、接收数据
             nError = manager.read(nServerListPos, ans);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                logger.info("sendReadCoil-接收成功");
+                logger.info("readModelData-1:sendReadCoil-接收成功");
             } else {
-                logger.warn("sendReadCoil-接受失败，" + ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-1:sendReadCoil-接受失败，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 4、接收数据后，通过该方法读取相应数据
             if (nError == ModbusProtocol.ERROR_NONE) {
@@ -173,17 +190,20 @@ public class TaskScheduled {
                     if (nCoilStatus == -1) {
                         // 设置无效值
                         nCoilStatus = 9911;
-                        logger.info("*****readModelData1 is failed*****");
+                        logger.info("*****readModelData-1 is failed*****");
                     }
                     responseData.add(String.valueOf(nCoilStatus));
                 }
+                logger.info("readModelData-1:sendReadCoil-读取成功");
             }
         } catch (Exception e) {
-            logger.error("readModelData1 is Exception", e);
+            logger.error("readModelData-1 is Exception", e);
+            throw new Exception("readModelData-1 is Exception");
         }
         if (CollectionUtils.isEmpty(responseData)) {
             logger.error("readModelData1 is null");
         }
+        logger.info("readModelData1-----------" + responseData);
         return responseData;
     }
 
@@ -193,7 +213,7 @@ public class TaskScheduled {
      * @param nFrom
      * @param nNum
      */
-    private List<String> readModelData3(int nFrom, int nNum, int dataType) {
+    private List<String> readModelData3(int nFrom, int nNum, int dataType) throws Exception {
 
         List<String> responseData = new ArrayList<String>();
         try {
@@ -202,23 +222,23 @@ public class TaskScheduled {
             // 1、设置发送指令参数
             int nError = req.sendReadHoldingRegister(nDeviceId, nFrom, nNum);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                // System.out.println("--send-start");
+                logger.info("readModelData-3:sendReadCoil-参数设置有效");
             } else {
-                System.out.println(ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-3:sendReadCoil-参数设置无效，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 2、发送指令
             nError = manager.write(nServerListPos, req);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                // System.out.println("--send-success");
+                logger.info("readModelData-3:sendReadCoil-发送成功");
             } else {
-                System.out.println(ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-3:sendReadCoil-发送失败，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 3、接收数据
             nError = manager.read(nServerListPos, ans);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                // System.out.println("--accept-success");
+                logger.info("readModelData-3:sendReadCoil-接受成功");
             } else {
-                System.out.println(ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-3:sendReadCoil-接受失败，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 4、接收数据后，通过该方法读取相应数据
             if (nError == ModbusProtocol.ERROR_NONE) {
@@ -228,17 +248,20 @@ public class TaskScheduled {
                     float data = ans.getFloatByIndex(i - nFrom);
                     if ((float) 268435456 == data) {
                         data = 9911;
-                        logger.info("*****readModelData3 is failed*****");
+                        logger.info("*****readModelData-3 is failed*****");
                     }
                     responseData.add(String.valueOf(data));
                 }
+                logger.info("readModelData-3:sendReadCoil-读取成功");
             }
         } catch (Exception e) {
-            logger.error("readModelData3 is Exception", e);
+            logger.error("readModelData-3 is Exception", e);
+            throw new Exception("readModelData-3 is Exception");
         }
         if (CollectionUtils.isEmpty(responseData)) {
-            logger.error("readModelData3 is null");
+            logger.error("readModelData-3 is null");
         }
+        logger.info("readModelData3-----------" + responseData);
         return responseData;
     }
 
@@ -248,7 +271,7 @@ public class TaskScheduled {
      * @param nFrom
      * @param nNum
      */
-    private List<String> readModelData4(int nFrom, int nNum, int dataType) {
+    private List<String> readModelData4(int nFrom, int nNum, int dataType) throws Exception {
 
         List<String> responseData = new ArrayList<String>();
         try {
@@ -257,22 +280,24 @@ public class TaskScheduled {
 
             int nError = req.sendReadInputRegister(nDeviceId, nFrom, nNum);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                // System.out.println("sendReadInputRegister-参数设置有效");
+                logger.info("readModelData-4:sendReadCoil-参数设置有效" );
             } else {
-                System.out.println(ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-4:sendReadCoil-参数设置无效，" + ModbusProtocol.getErrorMessage(nError));
             }
             // 2、发送指令
             nError = manager.write(nServerListPos, req);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                //System.out.println("sendReadInputRegister-发送有效");
+                logger.info("readModelData-4:sendReadCoil-发送成功");
             } else {
-                System.out.println(ModbusProtocol.getErrorMessage(nError));
+                logger.warn("readModelData-4:sendReadCoil-发送失败，" + ModbusProtocol.getErrorMessage(nError));
             }
 
             // 3、接收数据
             nError = manager.read(nServerListPos, ans);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                // System.out.println("sendReadInputRegister-接收有效");
+                logger.info("readModelData-4:sendReadCoil-接受有效");
+            } else {
+                logger.warn("readModelData-4:sendReadCoil-接受失败，" + ModbusProtocol.getErrorMessage(nError));
             }
 
             // 4、接收数据成功，则通过该方法读取相应数据
@@ -285,25 +310,29 @@ public class TaskScheduled {
                         int data = ans.getIntByIndex(i);
                         if ((float) 268435456 == data) {
                             data = 9911;
-                            logger.info("*****readModelData4  data(int) is failed*****");
+                            logger.info("*****readModelData-4  data(int) is failed*****");
                         }
                         responseData.add(String.valueOf(data));
                     } else if (dataType == 107) {
                         float data = ans.getFloatByIndex(i);
                         if ((float) 268435456 == data) {
-                            logger.info("*****readModelData4 data(float) is failed*****");
+                            logger.info("*****readModelData-4 data(float) is failed*****");
                             continue;
                         }
                         responseData.add(String.valueOf(data));
                     }
                 }
+                logger.info("readModelData-4:sendReadCoil-读取成功");
             }
         } catch (Exception e) {
-            logger.error("readModelData4 is Exception", e);
+            logger.error("readModelData-4 is Exception", e);
+            throw new Exception("readModelData-4 is Exception");
         }
         if (CollectionUtils.isEmpty(responseData)) {
-            logger.error("readModelData4 is null");
+            logger.error("readModelData-4 is null");
         }
+        logger.info("readModelData4-----------" + responseData);
         return responseData;
     }
+
 }
