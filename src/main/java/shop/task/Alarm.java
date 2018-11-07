@@ -72,7 +72,7 @@ public class Alarm {
                 Map<String, String> mapMsg = new HashMap<String, String>(1);
                 String template = "SMS_150170682";
                 // 直接调用发送信息方法， 避开初始化读云库主开关时间差。
-//                sendSms("13810653015", mapMsg, template);
+                sendSms("13810653015", mapMsg, template);
                 sendDDingAlarmInfo("甜圆云通知：程序启动成功通知！");
                 break;
             }
@@ -193,11 +193,15 @@ public class Alarm {
      * @return
      * @throws ClientException
      */
-    private SendSmsResponse sendSms(String phone, Map<String, String> mapMsg, String sms_template) throws ClientException {
+    private SendSmsResponse sendSms(String phone, Map<String, String> mapMsg, String sms_template) {
         System.setProperty("sun.net.client.defaultConnectTimeout", "10000");
         System.setProperty("sun.net.client.defaultReadTimeout", "10000");
         IClientProfile profile = DefaultProfile.getProfile("cn-hangzhou", accessKeyId, accessKeySecret);
-        DefaultProfile.addEndpoint("cn-hangzhou", "cn-hangzhou", product, domain);
+        try {
+            DefaultProfile.addEndpoint("cn-hangzhou", "cn-hangzhou", product, domain);
+        } catch (ClientException e) {
+            logger.error("sendSms DefaultProfile.addEndpoint is Exception" + e);
+        }
         IAcsClient acsClient = new DefaultAcsClient(profile);
         SendSmsRequest request = new SendSmsRequest();
         request.setPhoneNumbers(phone);
@@ -208,7 +212,7 @@ public class Alarm {
         SendSmsResponse sendSmsResponse = null;
         try {
             sendSmsResponse = acsClient.getAcsResponse(request);
-        } catch (ClientException e) {
+        } catch (Exception e) {
             logger.error("sendSms is Exception" + e);
         }
         return sendSmsResponse;
@@ -231,8 +235,15 @@ public class Alarm {
     }
 
     public void cleanSwitch() {
+        if (getSum() != 0) {
+            Map<String, String> mapMsg = new HashMap<String, String>(1);
+            mapMsg.put("msg", "");
+            String template = "SMS_150184069";
+            send(mapMsg, template);
+        }
         setSum(0);
     }
+
     public static int getSum() {
         return sum;
     }
