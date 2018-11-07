@@ -40,7 +40,7 @@ public class ReadConfig {
             }
             logger.info("————initConfig: yunConfig success");
         } catch (Exception e) {
-            logger.error("————initConfig: yunConfig Exception");
+            logger.error("————initConfig: yunConfig Exception" + e);
         }
 
         for (ConfigDO configDO : rs) {

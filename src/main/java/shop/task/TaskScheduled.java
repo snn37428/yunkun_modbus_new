@@ -9,6 +9,7 @@ import modbus.protocol.ModbusRequest;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
+import shop.dao.TaskYunMapper;
 import shop.domain.CUBO;
 import shop.domain.Cell;
 import shop.excl.ReadConfig;
@@ -40,6 +41,11 @@ public class TaskScheduled {
      */
     @Autowired
     private Alarm alarm;
+
+    /**
+     * 云库
+     */
+    private TaskYunMapper taskYunMapper;
 
     /**
      * 连接Plc资源
@@ -76,32 +82,52 @@ public class TaskScheduled {
      * 主任务 循环执行
      */
     public void taskRun() {
-//        alarm.sendAlarmInfo();
         List<Cell> cells = new ArrayList<Cell>();
-
-        for (CUBO cb : cubo) {
-            if (cb == null) {
-                logger.info("————taskRun: cb null");
-                continue;
+        try {
+            for (CUBO cb : cubo) {
+                if (cb == null) {
+                    logger.info("————taskRun: cb null");
+                    continue;
+                }
+                read(cb, cells);
             }
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            read(cb, cells);
+        } catch (Exception e) {
+            alarm.sendAlarmInfo(1);
+            logger.warn("----连接PLC通信失败！！！，异常信息：" + e);
+            return;
         }
-        logger.warn("————read:================================================= kkkkk = " + kkkkk);
-
+        try {
+            int rs = taskYunMapper.insert(cells);
+            if (rs > 0) {
+                logger.warn("----写云库成功！！！");
+                alarm.cleanSwitch();
+            }
+        } catch (Exception e) {
+            alarm.sendAlarmInfo(2);
+            logger.warn("----写云库失败！！！，异常信息：" + e);
+        }
     }
 
-
-    public void read(CUBO cb, List<Cell> cells) {
+    /**
+     * 读取1 3 4 功能码主读方法
+     *
+     * @param cb
+     * @param cells
+     * @throws Exception
+     */
+    public void read(CUBO cb, List<Cell> cells) throws Exception {
 
         if (nServerListPos == -1) {
             logger.warn("————read: nServerListPos = -1 progress return");
             return;
         }
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         try {
             int start = cb.getnFrom();
             int num = cb.getAddNum();
@@ -116,7 +142,8 @@ public class TaskScheduled {
                 cells.addAll(CUBO2Cell(cb));
             }
         } catch (Exception e) {
-            kkkkk = "1";
+            logger.error("----read is Exception" + e);
+            throw e;
         }
     }
 
@@ -280,7 +307,7 @@ public class TaskScheduled {
 
             int nError = req.sendReadInputRegister(nDeviceId, nFrom, nNum);
             if (nError == ModbusProtocol.ERROR_NONE) {
-                logger.info("readModelData-4:sendReadCoil-参数设置有效" );
+                logger.info("readModelData-4:sendReadCoil-参数设置有效");
             } else {
                 logger.warn("readModelData-4:sendReadCoil-参数设置无效，" + ModbusProtocol.getErrorMessage(nError));
             }
@@ -291,7 +318,6 @@ public class TaskScheduled {
             } else {
                 logger.warn("readModelData-4:sendReadCoil-发送失败，" + ModbusProtocol.getErrorMessage(nError));
             }
-
             // 3、接收数据
             nError = manager.read(nServerListPos, ans);
             if (nError == ModbusProtocol.ERROR_NONE) {
@@ -299,7 +325,6 @@ public class TaskScheduled {
             } else {
                 logger.warn("readModelData-4:sendReadCoil-接受失败，" + ModbusProtocol.getErrorMessage(nError));
             }
-
             // 4、接收数据成功，则通过该方法读取相应数据
             if (nError == ModbusProtocol.ERROR_NONE) {
                 //注：i的值为第几个数据,因此起点为0,而不是字节数的起点也与nAddressFrom不同

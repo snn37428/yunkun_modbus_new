@@ -34,33 +34,66 @@ public class Alarm {
 
     @Autowired
     private TaskYunMapper taskYunMapper;
-
     private static List<String> listPhone = new ArrayList<String>();
-    private String man = "1";
-    static final String product = "Dysmsapi";
-    static final String domain = "dysmsapi.aliyuncs.com";
-    static final String accessKeyId = "LTAIpy8aiA0Ngl1t";
-    static final String accessKeySecret = "EiW1cYfR8CrFnsSVLrFBSlQ1jeVl60";
+    private static String man = "0";
+    // 报警次数计数器
+    private static int sum = 0;
+    private static final String product = "Dysmsapi";
+    private static final String domain = "dysmsapi.aliyuncs.com";
+    private static final String accessKeyId = "LTAIpy8aiA0Ngl1t";
+    private static final String accessKeySecret = "EiW1cYfR8CrFnsSVLrFBSlQ1jeVl60";
+
 
     @PostConstruct
     public void init() {
-        logger.error("--------------------------");
         try {
-            Map<String, String>mapMsg = new HashMap<String, String>();
-            String template = "SMS_150170682";
-            sendSms("13810653015", mapMsg, template);
-        } catch (ClientException e) {
-            logger.error("程序启动短信通知失败");
+            listPhone.add("13810653015");
+            sendAlarmInfo(0);
+        } catch (Exception e) {
+            logger.error("----init is Exception");
         }
     }
 
-    public void sendAlarmInfo() {
-        try {
-            send();
-            sendQuantiyAlarmInfo("PLC采集数据");
-            logger.info("----sendAlarmInfo is success ! ");
-        } catch (Exception e) {
-            logger.error("----调用发送信息接口异常" + e);
+
+    public void sendAlarmInfo(int code) {
+
+        if ("0".equals(man)) {
+            logger.error("send switch = 0");
+            return;
+        }
+        sum++;
+        // 大于三次取消报警
+        if (sum > 3) {
+            return;
+        }
+        switch (code) {
+            // 短信启动通知
+            case 0: {
+                Map<String, String> mapMsg = new HashMap<String, String>(1);
+                String template = "SMS_150170682";
+                // 直接调用发送信息方法， 避开初始化读云库主开关时间差。
+//                sendSms("13810653015", mapMsg, template);
+                sendDDingAlarmInfo("甜圆云通知：程序启动成功通知！");
+                break;
+            }
+            // 程序与PLC通信失败
+            case 1: {
+                Map<String, String> mapMsg = new HashMap<String, String>(1);
+                mapMsg.put("msg", "PLC数据采集端与PLC通信");
+                String template = "SMS_150173976";
+                send(mapMsg, template);
+                sendDDingAlarmInfo("甜圆云通知：PLC数据采集端与PLC通信数据异常，请及时查看处理。");
+                break;
+            }
+            // 数据写入云库失败
+            case 2: {
+                Map<String, String> mapMsg = new HashMap<String, String>();
+                mapMsg.put("msg", "写云库端写入");
+                String template = "SMS_150173976";
+//                send(mapMsg, template);
+                sendDDingAlarmInfo("甜圆云通知：写云库端写入数据异常，请及时查看处理。");
+                break;
+            }
         }
     }
 
@@ -84,7 +117,7 @@ public class Alarm {
                 logger.warn("----taskAlarmConfig: phones length = 0");
             }
             List<String> pl = new ArrayList<String>();
-            for (int i = 0; i< p.length; i++) {
+            for (int i = 0; i < p.length; i++) {
                 pl.add(p[i]);
             }
             setListPhone(pl);
@@ -94,18 +127,11 @@ public class Alarm {
         }
     }
 
+
     /**
      * 短信循环电话号码报警
      */
-    private void send() {
-        if ("0".equals(man)) {
-            logger.error("send  switch=0,  return");
-            return;
-        }
-        Map<String, String>mapMsg = new HashMap<String, String>();
-        mapMsg.put("eMsg","PLC采集数据");
-        mapMsg.put("num", "5");
-        String template = "SMS_150180447";
+    private void send(Map<String, String> mapMsg, String template) {
         try {
             for (String p : listPhone) {
                 if (StringUtils.isNotBlank(p)) {
@@ -120,18 +146,54 @@ public class Alarm {
                 }
             }
         } catch (Exception e) {
-            logger.error("send is Exception"  + e);
+            logger.error("send is Exception" + e);
         }
     }
 
+    /**
+     * 发送钉钉消息
+     *
+     * @param msg
+     */
+    public void sendDDingAlarmInfo(String msg) {
+
+        try {
+            HttpClient httpclient = HttpClients.createDefault();
+            HttpPost httppost = new HttpPost(
+                    "https://oapi.dingtalk.com/robot/send?access_token=cfd308e57ae0dac4df80d85cb13d2d8d9324a718db31e53369fcd75349ba2534");
+            httppost.addHeader("Content-Type", "application/json; charset=utf-8");
+            //String textMsg = "{ \"msgtype\": \"text\", \"text\": {\"content\": \"测试消息类型？\"}}";
+            // 内容
+            Map<String, Object> contentMap = new HashMap<String, Object>();
+            contentMap.put("content", msg);
+            // at
+            Map<String, Object> atMap = new HashMap<String, Object>();
+            // atMap.put("atMobiles", listPhone);
+            // 主体
+            Map<String, Object> map = new HashMap<String, Object>();
+            map.put("msgtype", "text");
+            map.put("text", JSONObject.toJSONString(contentMap));
+            map.put("at", atMap);
+            StringEntity strEnt = new StringEntity(JSONObject.toJSONString(map), "utf-8");
+            httppost.setEntity(strEnt);
+            HttpResponse response = httpclient.execute(httppost);
+            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+                String result = EntityUtils.toString(response.getEntity(), "utf-8");
+                //System.out.println(result);
+            }
+        } catch (IOException e) {
+            logger.error("sendQuantiyAlarmInfo  is  Exception" + e);
+        }
+    }
 
     /**
      * 发短信
+     *
      * @param phone
      * @return
      * @throws ClientException
      */
-    private SendSmsResponse sendSms(String phone,  Map<String, String>mapMsg, String sms_template) throws ClientException {
+    private SendSmsResponse sendSms(String phone, Map<String, String> mapMsg, String sms_template) throws ClientException {
         System.setProperty("sun.net.client.defaultConnectTimeout", "10000");
         System.setProperty("sun.net.client.defaultReadTimeout", "10000");
         IClientProfile profile = DefaultProfile.getProfile("cn-hangzhou", accessKeyId, accessKeySecret);
@@ -152,41 +214,6 @@ public class Alarm {
         return sendSmsResponse;
     }
 
-    /**
-     * 发送钉钉消息
-     *
-     * @param msg
-     */
-    public void sendQuantiyAlarmInfo(String msg) {
-
-        try {
-            HttpClient httpclient = HttpClients.createDefault();
-            HttpPost httppost = new HttpPost(
-                    "https://oapi.dingtalk.com/robot/send?access_token=cfd308e57ae0dac4df80d85cb13d2d8d9324a718db31e53369fcd75349ba2534");
-            httppost.addHeader("Content-Type", "application/json; charset=utf-8");
-            //String textMsg = "{ \"msgtype\": \"text\", \"text\": {\"content\": \"测试消息类型？\"}}";
-            // 内容
-            Map<String, Object> contentMap = new HashMap<String, Object>();
-            contentMap.put("content", msg);
-            // at
-            Map<String, Object> atMap = new HashMap<String, Object>();
-            atMap.put("atMobiles", listPhone);
-            // 主体
-            Map<String, Object> map = new HashMap<String, Object>();
-            map.put("msgtype", "text");
-            map.put("text", JSONObject.toJSONString(contentMap));
-            map.put("at", atMap);
-            StringEntity strEnt = new StringEntity(JSONObject.toJSONString(map), "utf-8");
-            httppost.setEntity(strEnt);
-            HttpResponse response = httpclient.execute(httppost);
-            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-                String result = EntityUtils.toString(response.getEntity(), "utf-8");
-                //System.out.println(result);
-            }
-        } catch (IOException e) {
-            logger.error("sendQuantiyAlarmInfo  is  Exception" + e);
-        }
-    }
     public String getMan() {
         return man;
     }
@@ -201,5 +228,16 @@ public class Alarm {
 
     public static void setListPhone(List<String> listPhone) {
         Alarm.listPhone = listPhone;
+    }
+
+    public void cleanSwitch() {
+        setSum(0);
+    }
+    public static int getSum() {
+        return sum;
+    }
+
+    public static void setSum(int sum) {
+        Alarm.sum = sum;
     }
 }

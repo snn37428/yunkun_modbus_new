@@ -32,4 +32,8 @@
         select`man_switch` ,`read_switch` ,`write_switch` ,`dingding_switch`,`dingding_alarm` ,`list_mobies`,`list_cells`
         from alarm  where id  = 1
     </select>
+
+    <insert id="insert">
+
+    </insert>
 </mapper>
