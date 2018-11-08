@@ -36,20 +36,20 @@ public class ReadConfig {
             // 读取云库配置
             rs = taskYunMapper.readConfig();
             if (CollectionUtils.isEmpty(rs)) {
-                logger.info("————initConfig: yunConfig rs null");
+                logger.info("----initConfig: yunConfig rs null");
             }
-            logger.info("————initConfig: yunConfig success");
+            logger.info("----initConfig: yunConfig success");
         } catch (Exception e) {
-            logger.error("————initConfig: yunConfig Exception" + e);
+            logger.error("----initConfig: yunConfig Exception" + e);
         }
 
         for (ConfigDO configDO : rs) {
             if (configDO == null) {
-                logger.info("————initConfig: configDO null");
+                logger.info("----initConfig: configDO null");
                 continue;
             }
             if (StringUtils.isBlank(configDO.getModel())) {
-                logger.info("————initConfig: configDO.getModel null");
+                logger.info("----initConfig: configDO.getModel null");
                 continue;
             }
             if ("1".equals(configDO.getModel())) {

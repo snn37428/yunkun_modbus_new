@@ -83,7 +83,7 @@ public class Alarm {
                 pl.add(p[i]);
             }
             setListPhone(pl);
-            logger.info("----更新云库Alarm配置至内存完毕");
+            logger.info("----更新云库Alarm配置，至内存完毕！");
         } catch (Exception e) {
             logger.warn("----taskAlarmConfig is Exception" + e);
         }
@@ -162,12 +162,11 @@ public class Alarm {
             for (String p : listPhone) {
                 if (StringUtils.isNotBlank(p)) {
                     SendSmsResponse response = sendSms(p, mapMsg, template, singName);
-                    logger.info("短信接口----------------");
+                    logger.info("短信接口-------------------------");
                     logger.info("Code:" + response.getCode());
                     logger.info("Message:" + response.getMessage());
-                    logger.info("RequestId: is Exception" + response.getRequestId());
-                    logger.info("BizId: is Exception" + response.getBizId());
-                    logger.info("短信接口----------------");
+                    //logger.info("RequestId: is Exception" + response.getRequestId());
+                    //logger.info("BizId: is Exception" + response.getBizId());
                 } else {
                     logger.error("send  phone  is  null");
                 }
