@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import shop.dao.TaskYunMapper;
 import shop.domain.CUBO;
-import shop.domain.Cell;
+import shop.domain.CellDO;
 import shop.excl.ReadConfig;
 
 import javax.annotation.PostConstruct;
@@ -82,7 +82,7 @@ public class TaskScheduled {
      * 主任务 循环执行
      */
     public void taskRun() {
-        List<Cell> cells = new ArrayList<Cell>();
+        List<CellDO> cells = new ArrayList<CellDO>();
         try {
             for (CUBO cb : cubo) {
                 if (cb == null) {
@@ -115,7 +115,7 @@ public class TaskScheduled {
      * @param cells
      * @throws Exception
      */
-    public void read(CUBO cb, List<Cell> cells) throws Exception {
+    public void read(CUBO cb, List<CellDO> cells) throws Exception {
 
         if (nServerListPos == -1) {
             logger.warn("————read: nServerListPos = -1 progress return");
@@ -152,24 +152,24 @@ public class TaskScheduled {
      *
      * @param cb
      */
-    private List<Cell> CUBO2Cell(CUBO cb) {
-        List<Cell> cells = null;
+    private List<CellDO> CUBO2Cell(CUBO cb) {
+        List<CellDO> cells = null;
         try {
             List<String> values = cb.getValue();
             if (CollectionUtils.isEmpty(values)) {
                 logger.warn("————CUBO2Cell: cb read values null");
                 return cells;
             }
-            cells = new ArrayList<Cell>();
+            cells = new ArrayList<CellDO>();
             for (int i = 0; i < values.size(); i++) {
-                Cell cell = new Cell();
+                CellDO cell = new CellDO();
                 cell.setName(cb.getDotName().get(i));
                 cell.setDesc(cb.getDotDesc().get(i));
                 cell.setValue(values.get(i));
                 cell.setGroupCode(cb.getGroupCode());
                 cell.setConfigId(cb.getListConfigId().get(i));
                 cell.setType(cb.getType());
-                cell.setDate(new Date());
+                cell.setCreated(new Date());
             }
         } catch (Exception e) {
             logger.warn("————CUBO2Cell is Exception", e);

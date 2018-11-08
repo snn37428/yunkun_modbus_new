@@ -54,11 +54,65 @@ public class Alarm {
         }
     }
 
+    /**
+     * 定时更新配置====主任务
+     */
+    public void taskAlarmConfig() {
+        try {
+            AlarmDo alarmInfo = taskYunMapper.selectMan();
+            if (alarmInfo == null) {
+                logger.warn("----taskAlarmConfig: alarmInfo is null");
+            }
+            String manSwitch = alarmInfo.getManSwitch();
+            if (StringUtils.isBlank(alarmInfo.getListMobies()) || StringUtils.isBlank(manSwitch)) {
+                logger.warn("----taskAlarmConfig: phones is blank or manSwitch is blank");
+            }
+            // 更新主开关
+            if (!manSwitch.equals(man)) {
+                sendControlMsg(0, "master-switch", manSwitch);
+                logger.warn("----taskAlarmConfig: master-switch 状态置为：" + manSwitch);
+            }
+            setMan(manSwitch);
+            String phones = alarmInfo.getListMobies();
+            String[] p = phones.toString().split("\\;");
+            if (p.length == 0) {
+                logger.warn("----taskAlarmConfig: phones length = 0");
+            }
+            List<String> pl = new ArrayList<String>();
+            for (int i = 0; i < p.length; i++) {
+                pl.add(p[i]);
+            }
+            setListPhone(pl);
+            logger.info("----更新云库Alarm配置至内存完毕");
+        } catch (Exception e) {
+            logger.warn("----taskAlarmConfig is Exception" + e);
+        }
+    }
 
+    /**
+     * 控制消息
+     *
+     * @param code
+     */
+    public void sendControlMsg(int code, String val, String val2) {
+        Map<String, String> mapMsg = new HashMap<String, String>(2);
+        mapMsg.put("dot", val);
+        mapMsg.put("var", val2);
+        String template = "SMS_150184289";
+        String singName = "甜圆云控制";
+        send(mapMsg, template, singName);
+        sendDDingAlarmInfo("甜圆云控制：控制状态变更，控制点" + val + "状态置为" + val2 + "。");
+    }
+
+    /**
+     * 通知消息
+     *
+     * @param code
+     */
     public void sendAlarmInfo(int code) {
 
         if ("0".equals(man)) {
-            logger.error("send switch = 0");
+            logger.info("----sendAlarmInfo: master-switch = 0");
             return;
         }
         sum++;
@@ -72,7 +126,8 @@ public class Alarm {
                 Map<String, String> mapMsg = new HashMap<String, String>(1);
                 String template = "SMS_150170682";
                 // 直接调用发送信息方法， 避开初始化读云库主开关时间差。
-                sendSms("13810653015", mapMsg, template);
+                String singName = "甜圆云通知";
+                sendSms("13810653015", mapMsg, template, singName);
                 sendDDingAlarmInfo("甜圆云通知：程序启动成功通知！");
                 break;
             }
@@ -81,7 +136,8 @@ public class Alarm {
                 Map<String, String> mapMsg = new HashMap<String, String>(1);
                 mapMsg.put("msg", "PLC数据采集端与PLC通信");
                 String template = "SMS_150173976";
-                send(mapMsg, template);
+                String singName = "甜圆云通知";
+                send(mapMsg, template, singName);
                 sendDDingAlarmInfo("甜圆云通知：PLC数据采集端与PLC通信数据异常，请及时查看处理。");
                 break;
             }
@@ -90,7 +146,8 @@ public class Alarm {
                 Map<String, String> mapMsg = new HashMap<String, String>();
                 mapMsg.put("msg", "写云库端写入");
                 String template = "SMS_150173976";
-//                send(mapMsg, template);
+                String singName = "甜圆云通知";
+                send(mapMsg, template, singName);
                 sendDDingAlarmInfo("甜圆云通知：写云库端写入数据异常，请及时查看处理。");
                 break;
             }
@@ -98,49 +155,19 @@ public class Alarm {
     }
 
     /**
-     * 定时更新配置
-     */
-    public void taskAlarmConfig() {
-        try {
-            AlarmDo alarmInfo = taskYunMapper.selectMan();
-            if (alarmInfo == null) {
-                logger.warn("----taskAlarmConfig: alarmInfo is null");
-            }
-            if (StringUtils.isBlank(alarmInfo.getListMobies()) || StringUtils.isBlank(alarmInfo.getManSwitch())) {
-                logger.warn("----taskAlarmConfig: phones is blank or manSwitch is blank");
-            }
-            // 更新主开关
-            setMan(alarmInfo.getManSwitch());
-            String phones = alarmInfo.getListMobies();
-            String[] p = phones.toString().split("\\;");
-            if (p.length == 0) {
-                logger.warn("----taskAlarmConfig: phones length = 0");
-            }
-            List<String> pl = new ArrayList<String>();
-            for (int i = 0; i < p.length; i++) {
-                pl.add(p[i]);
-            }
-            setListPhone(pl);
-            logger.info("----:更新云库配置到本地完毕！报警号码" + JSONObject.toJSONString(listPhone));
-        } catch (Exception e) {
-            logger.warn("----taskAlarmConfig is Exception" + e);
-        }
-    }
-
-
-    /**
      * 短信循环电话号码报警
      */
-    private void send(Map<String, String> mapMsg, String template) {
+    private void send(Map<String, String> mapMsg, String template, String singName) {
         try {
             for (String p : listPhone) {
                 if (StringUtils.isNotBlank(p)) {
-                    SendSmsResponse response = sendSms(p, mapMsg, template);
-                    logger.info("短信接口返回的数据----------------");
+                    SendSmsResponse response = sendSms(p, mapMsg, template, singName);
+                    logger.info("短信接口----------------");
                     logger.info("Code:" + response.getCode());
                     logger.info("Message:" + response.getMessage());
-                    logger.info("RequestId:  is  Exception" + response.getRequestId());
-                    logger.info("BizId:  is  Exception" + response.getBizId());
+                    logger.info("RequestId: is Exception" + response.getRequestId());
+                    logger.info("BizId: is Exception" + response.getBizId());
+                    logger.info("短信接口----------------");
                 } else {
                     logger.error("send  phone  is  null");
                 }
@@ -193,7 +220,7 @@ public class Alarm {
      * @return
      * @throws ClientException
      */
-    private SendSmsResponse sendSms(String phone, Map<String, String> mapMsg, String sms_template) {
+    private SendSmsResponse sendSms(String phone, Map<String, String> mapMsg, String sms_template, String singName) {
         System.setProperty("sun.net.client.defaultConnectTimeout", "10000");
         System.setProperty("sun.net.client.defaultReadTimeout", "10000");
         IClientProfile profile = DefaultProfile.getProfile("cn-hangzhou", accessKeyId, accessKeySecret);
@@ -205,7 +232,7 @@ public class Alarm {
         IAcsClient acsClient = new DefaultAcsClient(profile);
         SendSmsRequest request = new SendSmsRequest();
         request.setPhoneNumbers(phone);
-        request.setSignName("甜圆云通知");
+        request.setSignName(singName);
         request.setTemplateCode(sms_template);
         request.setTemplateParam(JSONObject.toJSONString(mapMsg));
         request.setOutId("yourOutId");
@@ -239,7 +266,8 @@ public class Alarm {
             Map<String, String> mapMsg = new HashMap<String, String>(1);
             mapMsg.put("msg", "");
             String template = "SMS_150184069";
-            send(mapMsg, template);
+            String singName = "甜圆云通知";
+            send(mapMsg, template, singName);
         }
         setSum(0);
     }

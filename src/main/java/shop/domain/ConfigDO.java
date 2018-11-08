@@ -44,7 +44,7 @@ public class ConfigDO {
     /**
      * 写库时间
      */
-    private Date date;
+    private Date created;
 
     /**
      * 功能码 3 4 读取的时候 设置转化码
@@ -115,12 +115,12 @@ public class ConfigDO {
         this.groupCode = groupCode;
     }
 
-    public Date getDate() {
-        return date;
+    public Date getCreated() {
+        return created;
     }
 
-    public void setDate(Date date) {
-        this.date = date;
+    public void setCreated(Date created) {
+        this.created = created;
     }
 
     public Integer getAddress() {

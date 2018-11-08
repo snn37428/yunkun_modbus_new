@@ -1,8 +1,13 @@
 package shop.domain;
 
-import java.util.Date;
+public class CellDO extends ConfigDO {
+    private String value;
 
-public class CellDO {
+    public String getValue() {
+        return value;
+    }
 
-
+    public void setValue(String value) {
+        this.value = value;
+    }
 }
