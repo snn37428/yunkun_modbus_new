@@ -34,12 +34,12 @@
     </select>
 
     <insert id="insert" parameterType="java.util.ArrayList">
-        insert into plc_pro_01(config_id, p_name, p_desc, p_type, model, modbus_addr, p_value, cyc, group_code,
-        created,yun_created)
+        insert into plc_pro_50(config_id, p_name, p_desc, p_type, model, modbus_addr, p_value,group_code,
+        created)
         values
         <foreach collection="list" item="item" index="index" separator=",">
             (#{item.configId},#{item.name},#{item.desc},#{item.type},#{item.model}, #{item.address}, #{item.value},
-            #{item.groupCode}, #{item.created},now())
+            #{item.groupCode},now())
         </foreach>
     </insert>
 </mapper>

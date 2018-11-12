@@ -42,18 +42,25 @@ public class CUBO {
 
     /**
      * plc configId
+     *
      * @return
      */
     private List<String> listConfigId;
 
     /**
+     * PLC 地址
+     */
+    private List<Integer> listAddress;
+    /**
      * 读取的PLC数值
+     *
      * @return
      */
     private List<String> value;
 
     /**
      * 分组编码
+     *
      * @return
      */
     private String groupCode;
@@ -149,5 +156,13 @@ public class CUBO {
 
     public void setListConfigId(List<String> listConfigId) {
         this.listConfigId = listConfigId;
+    }
+
+    public List<Integer> getListAddress() {
+        return listAddress;
+    }
+
+    public void setListAddress(List<Integer> listAddress) {
+        this.listAddress = listAddress;
     }
 }

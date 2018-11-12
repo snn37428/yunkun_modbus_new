@@ -23,10 +23,8 @@ import shop.domain.AlarmDo;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class Alarm {
 
@@ -112,43 +110,50 @@ public class Alarm {
     public void sendAlarmInfo(int code) {
 
         if ("0".equals(man)) {
-            logger.info("----sendAlarmInfo: master-switch = 0");
+            logger.info("====master-switch = 0 报警信息不触发");
             return;
         }
         sum++;
         // 大于三次取消报警
         if (sum > 3) {
+            logger.info("--报警超过三次取消！");
             return;
         }
         switch (code) {
             // 短信启动通知
             case 0: {
                 Map<String, String> mapMsg = new HashMap<String, String>(1);
+                Date d = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 String template = "SMS_150170682";
                 // 直接调用发送信息方法， 避开初始化读云库主开关时间差。
                 String singName = "甜圆云通知";
-                sendSms("13810653015", mapMsg, template, singName);
-                sendDDingAlarmInfo("甜圆云通知：程序启动成功通知！");
+               sendSms("13810653015", mapMsg, template, singName);
+                sendDDingAlarmInfo("甜圆云通知：程序启动成功通知！" + sdf.format(d));
                 break;
             }
             // 程序与PLC通信失败
             case 1: {
                 Map<String, String> mapMsg = new HashMap<String, String>(1);
+                Date d = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 mapMsg.put("msg", "PLC数据采集端与PLC通信");
                 String template = "SMS_150173976";
                 String singName = "甜圆云通知";
                 send(mapMsg, template, singName);
-                sendDDingAlarmInfo("甜圆云通知：PLC数据采集端与PLC通信数据异常，请及时查看处理。");
+                sendDDingAlarmInfo("甜圆云通知：PLC数据采集端与PLC通信数据异常，第 " + sum + " 次请及时查看处理。[" + sdf.format(d));
                 break;
             }
             // 数据写入云库失败
             case 2: {
                 Map<String, String> mapMsg = new HashMap<String, String>();
+                Date d = new Date();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 mapMsg.put("msg", "写云库端写入");
                 String template = "SMS_150173976";
                 String singName = "甜圆云通知";
                 send(mapMsg, template, singName);
-                sendDDingAlarmInfo("甜圆云通知：写云库端写入数据异常，请及时查看处理。");
+                sendDDingAlarmInfo("甜圆云通知：写云库端写入数据异常，请及时查看处理。" + sdf.format(d));
                 break;
             }
         }

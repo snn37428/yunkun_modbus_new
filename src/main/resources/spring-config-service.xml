@@ -28,7 +28,7 @@
     <task:scheduled-tasks>
         <!--<task:scheduled ref="task" method="readTaskList4" cron="*/5 * * * * ?"/>-->
 
-        <!--<task:scheduled ref="taskScheduled" method="taskRun" cron="*/5 * * * * ?"/>-->
+        <task:scheduled ref="taskScheduled" method="taskRun" cron="*/5 * * * * ?"/>
 
         <task:scheduled ref="alarm" method="taskAlarmConfig" cron="*/10 * * * * ?"/>
 

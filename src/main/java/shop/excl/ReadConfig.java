@@ -71,7 +71,7 @@ public class ReadConfig {
         setIp(config.get("ip").toString());
         setPort(port = config.get("port").toString());
         setDeviceId(deviceId = config.get("deviceId").toString());
-        logger.info("————initConfig: ip:" + ip + " : port: " + port + " deviceId: " + deviceId + "");
+        logger.info("----initConfig: ip:" + ip + " : port: " + port + " deviceId: " + deviceId + "");
     }
 
     /**
@@ -97,7 +97,7 @@ public class ReadConfig {
     private CUBO buildCUBO(List<ConfigDO> configDOList, int i) {
 
         if (CollectionUtils.isEmpty(configDOList)) {
-            logger.info("————initConfig: load model " + i + " size:0");
+            logger.info("----initConfig: load model " + i + " size:0");
             return null;
         }
 
@@ -105,6 +105,7 @@ public class ReadConfig {
         List<String> listName = new ArrayList<String>();
         List<String> listDesc = new ArrayList<String>();
         List<String> listConfigId = new ArrayList<String>();
+        List<Integer> listAddress = new ArrayList<Integer>();
         for (ConfigDO configDO : configDOList) {
             cubo.setModel(configDO.getModel());
             cubo.setAddNum(configDOList.size());
@@ -115,11 +116,13 @@ public class ReadConfig {
             listName.add(configDO.getName());
             listDesc.add(configDO.getDesc());
             listConfigId.add(configDO.getConfigId());
+            listAddress.add(configDO.getModAddr());
         }
         cubo.setDotName(listName);
         cubo.setDotDesc(listDesc);
         cubo.setListConfigId(listConfigId);
-        logger.info("————initConfig: load model " + i + " size:" + configDOList.size());
+        cubo.setListAddress(listAddress);
+        logger.info("----initConfig: load model " + i + " size:" + configDOList.size());
         return cubo;
     }
 
