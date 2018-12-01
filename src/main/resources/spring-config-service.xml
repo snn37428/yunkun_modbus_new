@@ -8,29 +8,37 @@
                         http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd"
        default-lazy-init="true">
 
-    <context:component-scan base-package="shop.dao"/>
+    <context:component-scan base-package="shop.dao,"/>
 
     <bean id="globalConfig" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
         <property name="location" value="classpath:global.properties"/>
         <property name="fileEncoding" value="UTF-8"/>
     </bean>
-
+    <!--初始化加载的数据-->
     <bean id="readConfig" class="shop.excl.ReadConfig" init-method="initConfig" lazy-init="false">
         <property name="config" ref="globalConfig"/>
     </bean>
-
+    <!--定时主任务-->
     <bean id="taskScheduled" class="shop.task.TaskScheduled">
     </bean>
-
+    <!--MQ配置-->
+    <bean id="mqcConfig" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+        <property name="location" value="classpath:mqc.properties"/>
+        <property name="fileEncoding" value="UTF-8"/>
+    </bean>
+    <!--MQ消费-->
+    <bean id="consumerService" class="shop.mq.ConsumerService" init-method="read" lazy-init="false">
+        <property name="mqConfig" ref="mqcConfig"/>
+    </bean>
+    <!--钉钉短信报警-->
     <bean id="alarm" class="shop.task.Alarm">
     </bean>
 
     <task:scheduled-tasks>
-        <!--<task:scheduled ref="task" method="readTaskList4" cron="*/5 * * * * ?"/>-->
 
-        <task:scheduled ref="taskScheduled" method="taskRun" cron="*/5 * * * * ?"/>
+    <task:scheduled ref="taskScheduled" method="taskRun" cron="*/5 * * * * ?"/>
 
-        <task:scheduled ref="alarm" method="taskAlarmConfig" cron="*/10 * * * * ?"/>
+    <task:scheduled ref="alarm" method="taskAlarmConfig" cron="*/10 * * * * ?"/>
 
     </task:scheduled-tasks>
 </beans>
