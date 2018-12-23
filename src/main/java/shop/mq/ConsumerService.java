@@ -29,65 +29,78 @@ public class ConsumerService {
      */
     private static int nDeviceId = Integer.valueOf(ReadConfig.getDeviceId());
     private static String ip = ReadConfig.getIp();
-
-
     private static Properties mqConfig;
 
     @PostConstruct
     public void read() {
         Consumer consumer = ONSFactory.createConsumer(mqConfig);
-        consumer.subscribe("TY_20181201_CONTROLLER", "CC", new MessageListener() {
+        consumer.subscribe("TY_20181201_CONTROLLER", "919", new MessageListener() {
             public Action consume(Message message, ConsumeContext context) {
                 Instruct rs = JSONObject.parseObject(new String(message.getBody()), Instruct.class);
                 if (rs == null) {
                     logger.error("read : rs null");
                 }
-                bulidWriteAndRead(new String(message.getBody()));
+                logger.info("Consumer mq" + JSONObject.parseObject(new String(message.getBody())));
+                try {
+//                    HttpClientGet("https://tianyuanfarm.com/cb/back", new String(message.getBody()));
 //                    HttpClientGet("http://127.0.0.1:8081/cb/back", new String(message.getBody()));
-                logger.info("Receive: " + JSONObject.parseObject(new String(message.getBody())));
+                    bulidWriteAndRead(new String(message.getBody()));
+                } catch (Exception e) {
+                    logger.info("HttpClientGet is Exception" + e);
+                }
+                logger.info("Consumer mq is success: " + JSONObject.parseObject(new String(message.getBody())));
                 return Action.CommitMessage;
             }
         });
         consumer.start();
-        logger.info("read : onsumer ----------------- Started");
+        logger.info("read : consumer ----------------- Started");
     }
 
+    /**
+     * MQ消息控制转化
+     *
+     * @param dataMsg
+     */
     public static void bulidWriteAndRead(String dataMsg) {
-        String msg = "";
-        Instruct rs = JSONObject.parseObject(msg, Instruct.class);
-        if (rs == null) {
-            logger.error("accept mq data is null");
-            return;
-        }
-        Integer address = rs.getModbusAddr();
-        Integer status = rs.getStatus();
-        boolean tag;
-        if (status == 1) {
-            tag = true;
-        } else if (status == 0) {
-            tag = false;
-        } else {
-            tag = false;
-            logger.error("tag status invalid");
-        }
-        if (writeDataPLC(address.intValue(), tag)) {
-            int value = readDataPLC(2);
-            if (value == status) {
-                logger.info("writeDataPLC : sendWriteCoil-写入成功");
-                HttpClientGet("https://tianyuanfarm.com/cb/back", dataMsg);
+        try {
+            Instruct rs = JSONObject.parseObject(dataMsg, Instruct.class);
+            if (rs == null) {
+                logger.error("accept mq data is null");
+                return;
             }
-        } else {
-            // 重试
-            for (int i = 0; i < 3; i++) {
-                if (writeDataPLC(address.intValue(), tag)) {
-                    int value = readDataPLC(2);
-                    if (value == status) {
-                        logger.info("writeDataPLC again success: sendWriteCoil-写入成功");
-                        HttpClientGet("https://tianyuanfarm.com/cb/back", dataMsg);
-                        break;
+            Integer address = rs.getModbusAddr();
+            Integer status = rs.getStatus();
+            boolean tag;
+            if (status == 1) {
+                tag = true;
+            } else if (status == 0) {
+                tag = false;
+            } else {
+                tag = false;
+                logger.error("tag status invalid");
+            }
+            if (writeDataPLC(address.intValue(), tag)) {
+                int value = readDataPLC(2);
+                if (value == status) {
+                    logger.info("writeDataPLC : sendWriteCoil-写入成功");
+                    HttpClientGet("https://tianyuanfarm.com/cb/back", dataMsg);
+                }
+            } else {
+                // 重试
+                for (int i = 0; i < 3; i++) {
+                    if (writeDataPLC(address.intValue(), tag)) {
+                        int value = readDataPLC(2);
+                        if (value == status) {
+                            logger.info("writeDataPLC again success: sendWriteCoil-写入成功");
+                            HttpClientGet("https://tianyuanfarm.com/cb/back", dataMsg);
+                            break;
+                        }
                     }
                 }
+                HttpClientGet("https://tianyuanfarm.com/cb/back/error", dataMsg);
             }
+        } catch (Exception e) {
+            logger.error("bulidWriteAndRead is Exception , e" + e);
         }
     }
 
