@@ -48,12 +48,12 @@ public class ConsumerService {
                 } catch (Exception e) {
                     logger.info("HttpClientGet is Exception" + e);
                 }
-                logger.info("Consumer mq is success: " + JSONObject.parseObject(new String(message.getBody())));
+                logger.info("accept mq is success: " + JSONObject.parseObject(new String(message.getBody())));
                 return Action.CommitMessage;
             }
         });
         consumer.start();
-        logger.info("read : consumer ----------------- Started");
+        logger.info("----mq consumer is started");
     }
 
     /**
@@ -79,24 +79,27 @@ public class ConsumerService {
                 tag = false;
                 logger.error("tag status invalid");
             }
+            logger.info("writeDataPLC : 进入写入PLC阶段。");
             if (writeDataPLC(address.intValue(), tag)) {
-                int value = readDataPLC(2);
+                int value = readDataPLC(address.intValue());
                 if (value == status) {
-                    logger.info("writeDataPLC : sendWriteCoil-写入成功");
+                    logger.info("writeDataPLC : 写入到PLC，并读取后验证写入成功!!!");
                     HttpClientGet("https://tianyuanfarm.com/cb/back", dataMsg);
                 }
             } else {
                 // 重试
                 for (int i = 0; i < 3; i++) {
+                    logger.info("writeDataPLC : 写入到PLC，并读取后验证失败，进入重试逻辑。重试第" + i + "次");
                     if (writeDataPLC(address.intValue(), tag)) {
-                        int value = readDataPLC(2);
+                        int value = readDataPLC(address.intValue());
                         if (value == status) {
-                            logger.info("writeDataPLC again success: sendWriteCoil-写入成功");
+                            logger.info("writeDataPLC 重试后写入成功！！！第" + i + "次重试成功！！！");
                             HttpClientGet("https://tianyuanfarm.com/cb/back", dataMsg);
                             break;
                         }
                     }
                 }
+                logger.info("writeDataPLC 经过3次重试后仍失败！！！");
                 HttpClientGet("https://tianyuanfarm.com/cb/back/error", dataMsg);
             }
         } catch (Exception e) {
@@ -141,7 +144,7 @@ public class ConsumerService {
                 //3.接收数据
                 nError = manager.read(nServerListPos, ans);
                 if (nError == ModbusProtocol.ERROR_NONE) {
-                    logger.info("writeDataPLC : sendWriteCoil-写入成功");
+//                    logger.info("writeDataPLC : sendWriteCoil-写入成功");
                     return true;
                 }
             }

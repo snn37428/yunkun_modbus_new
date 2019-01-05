@@ -34,11 +34,11 @@
     <bean id="alarm" class="shop.task.Alarm">
     </bean>
 
-    <!--<task:scheduled-tasks>-->
+    <task:scheduled-tasks>
 
-    <!--&lt;!&ndash;<task:scheduled ref="taskScheduled" method="taskRun" cron="*/5 * * * * ?"/>&ndash;&gt;-->
+    <task:scheduled ref="taskScheduled" method="taskRun" cron="*/5 * * * * ?"/>
 
     <!--&lt;!&ndash;<task:scheduled ref="alarm" method="taskAlarmConfig" cron="*/10 * * * * ?"/>&ndash;&gt;-->
 
-    <!--</task:scheduled-tasks>-->
+    </task:scheduled-tasks>
 </beans>
